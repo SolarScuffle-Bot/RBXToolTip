@@ -2,7 +2,6 @@
 
 local CollectionService = game:GetService 'CollectionService'
 local Players = game:GetService 'Players'
-local RbxAnalyticsService = game:GetService 'RbxAnalyticsService'
 
 local localPlayer = Players.LocalPlayer
 local mouse = localPlayer:GetMouse()
