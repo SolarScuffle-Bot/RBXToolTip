@@ -1,0 +1,14 @@
+[package]
+name = "solarscuffle_bot/squash"
+version = "1.0.0"
+registry = "https://github.com/UpliftGames/wally-index"
+licence = "MIT"
+authors = ["Sona"]
+
+description = "A configurable tool-tip when you hover over certain gui elements."
+
+realm = "shared"
+
+exclude = ["README.md"]
+
+[dependencies]
