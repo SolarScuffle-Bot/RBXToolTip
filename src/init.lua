@@ -1,4 +1,8 @@
+--!strict
+
 local UserInputService = game:GetService 'UserInputService'
+
+local function Nop(self) end
 
 local function Show(self)
 	return function()
@@ -47,12 +51,12 @@ end
 local ToolTip = {}
 ToolTip.__index = ToolTip
 
-function ToolTip.Anchor(self: ToolTip, Value: UDim2?): UDim2 --* should be able to dynamically change the tooltip
+function ToolTip.Anchor(self: ToolTip, Value: Vector2?): Vector2 --* should be able to dynamically change the tooltip
 	if Value then self.Instance.AnchorPoint = Value end
 	return self.Instance.AnchorPoint
 end
 
-function ToolTip.Offset(self: ToolTip, Value: UDim2?): UDim2
+function ToolTip.Offset(self: ToolTip, Value: Vector2?): Vector2
 	if Value then self.Offset = Value end
 	return self.Offset
 end
@@ -64,7 +68,7 @@ end
 function ToolTip.Enable(self: ToolTip)
 	if self:IsEnabled() then return end
 
-	for Gui in self.Guis do
+	for Gui in pairs(self.Guis) do
 		Connect(self, Gui)
 	end
 end
@@ -74,7 +78,7 @@ function ToolTip.Disable(self: ToolTip)
 
 	self.Instance.Visible = false
 
-	for _, Connection in self.Connections do
+	for _, Connection in pairs(self.Connections) do
 		Disconnect(self, Connection)
 	end
 
@@ -136,38 +140,37 @@ do
 	Module.DefaultTextLabel = textLabel
 end
 
-function Module.fromGui(GuiObject: GuiObject, Offset: Vector2, Anchor: Vector2)
+local function From(Object: GuiObject, Offset: Vector2, Anchor: Vector2)
 	local self = {
-		Instance = GuiObject,
-		Offset = UDim2.fromOffset(Offset.X, Offset.Y),
-		Anchor = UDim2.fromScale(Anchor.X, Anchor.Y),
+		Instance = Object,
+		Offset = Vector2.new(Offset.X, Offset.Y),
+		Anchor = Vector2.new(Anchor.X, Anchor.Y),
 		Connections = {},
 		Guis = {},
 	}
+
+	self.OnShown = Nop
+	self.OnMoved = Nop
+	self.OnHidden = Nop
 
 	self.Show = Show(self)
 	self.Move = Move(self)
 	self.Hide = Hide(self)
 
+	return self
+end
+
+function Module.fromGui(GuiObject: GuiObject, Offset: Vector2, Anchor: Vector2)
+	local self = From(GuiObject, Offset, Anchor)
 	return setmetatable(self, ToolTip)
 end
 
 function Module.fromText(Text: string, Offset: Vector2, Anchor: Vector2)
-	local TextInstance = Module.DefaultTextLabel:Clone()
-	TextInstance.Text = Text
+	local TextLabel = Module.DefaultTextLabel:Clone()
+	TextLabel.Text = Text
 
-	local self = {
-		Instance = TextInstance,
-		Offset = UDim2.fromOffset(Offset.X, Offset.Y),
-		Anchor = UDim2.fromScale(Anchor.X, Anchor.Y),
-		Connections = {},
-		Guis = {},
-		Text = Text,
-	}
-
-	self.Show = Show(self)
-	self.Move = Move(self)
-	self.Hide = Hide(self)
+	local self = From(TextLabel, Offset, Anchor) :: TextToolTip
+	self.Text = Text
 
 	return setmetatable(self, TextToolTip)
 end
