@@ -48,7 +48,7 @@ local function Disconnect(self: ToolTip, Gui: GuiObject)
 	Connections.Destroying:Disconnect()
 end
 
-local function From(Object: GuiObject, Offset: Vector2, Anchor: Vector2)
+local function From<T>(Object: T & GuiObject, Offset: Vector2, Anchor: Vector2)
 	local self = {
 		Instance = Object,
 		Offset = Vector2.new(Offset.X, Offset.Y),
@@ -142,9 +142,9 @@ function ToolTip.OnUpdate(self: ToolTip, Position: UDim2) end
 local TextToolTip = table.clone(ToolTip)
 TextToolTip.__index = TextToolTip
 
-function TextToolTip.Text(self: TextToolTip, Value: string): string
-	if Value then self.Text = Value end
-	return self.Text
+function TextToolTip.Text(self: TextToolTip, Value: string?): string
+	if Value then self.Instance.Text = Value end
+	return self.Instance.Text
 end
 
 local Module = {}
@@ -169,9 +169,7 @@ function Module.fromText(Text: string, Offset: Vector2, Anchor: Vector2)
 	local TextLabel = Module.DefaultTextLabel:Clone()
 	TextLabel.Text = Text
 
-	local self = From(TextLabel, Offset, Anchor) :: TextToolTip
-	self.Text = Text
-
+	local self = From(TextLabel, Offset, Anchor)
 	return setmetatable(self, TextToolTip)
 end
 
