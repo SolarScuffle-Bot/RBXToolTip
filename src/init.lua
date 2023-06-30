@@ -48,6 +48,26 @@ local function Disconnect(self: ToolTip, Gui: GuiObject)
 	Connections.Destroying:Disconnect()
 end
 
+local function From(Object: GuiObject, Offset: Vector2, Anchor: Vector2)
+	local self = {
+		Instance = Object,
+		Offset = Vector2.new(Offset.X, Offset.Y),
+		Anchor = Vector2.new(Anchor.X, Anchor.Y),
+		Connections = {},
+		Guis = {},
+	}
+
+	self.OnShown = Nop
+	self.OnMoved = Nop
+	self.OnHidden = Nop
+
+	self.Show = Show(self)
+	self.Move = Move(self)
+	self.Hide = Hide(self)
+
+	return self
+end
+
 local ToolTip = {}
 ToolTip.__index = ToolTip
 
@@ -138,26 +158,6 @@ do
 	textLabel.TextScaled = true
 
 	Module.DefaultTextLabel = textLabel
-end
-
-local function From(Object: GuiObject, Offset: Vector2, Anchor: Vector2)
-	local self = {
-		Instance = Object,
-		Offset = Vector2.new(Offset.X, Offset.Y),
-		Anchor = Vector2.new(Anchor.X, Anchor.Y),
-		Connections = {},
-		Guis = {},
-	}
-
-	self.OnShown = Nop
-	self.OnMoved = Nop
-	self.OnHidden = Nop
-
-	self.Show = Show(self)
-	self.Move = Move(self)
-	self.Hide = Hide(self)
-
-	return self
 end
 
 function Module.fromGui(GuiObject: GuiObject, Offset: Vector2, Anchor: Vector2)
