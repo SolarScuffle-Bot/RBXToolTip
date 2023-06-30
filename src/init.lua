@@ -150,14 +150,14 @@ end
 local Module = {}
 
 do
-	local textLabel = Instance.new 'TextLabel'
-	textLabel.BackgroundTransparency = 1
-	textLabel.TextColor3 = Color3.new(1, 1, 1)
-	textLabel.TextStrokeTransparency = 0
-	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-	textLabel.TextScaled = true
+	local TextLabel = Instance.new 'TextLabel'
+	TextLabel.BackgroundTransparency = 1
+	TextLabel.TextColor3 = Color3.new(1, 1, 1)
+	TextLabel.TextStrokeTransparency = 0
+	TextLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+	TextLabel.TextScaled = true
 
-	Module.DefaultTextLabel = textLabel
+	Module.DefaultTextLabel = TextLabel
 end
 
 function Module.fromGui(GuiObject: GuiObject, Offset: Vector2, Anchor: Vector2)
