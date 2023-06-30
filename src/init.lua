@@ -3,6 +3,7 @@
 local UserInputService = game:GetService 'UserInputService'
 
 local function Nop(self) end
+local function NopPos(self, Position: UDim2) end
 
 local function Show(self)
 	return function()
@@ -17,7 +18,6 @@ local function Move(self)
 		self.Instance.Visible = true
 
 		if WasHidden then self:OnShown() end
-
 		self:OnMoved(UDim2.fromOffset(X, Y))
 	end
 end
@@ -58,8 +58,9 @@ local function From<T>(Object: T & GuiObject, Offset: Vector2, Anchor: Vector2)
 	}
 
 	self.OnShown = Nop
-	self.OnMoved = Nop
 	self.OnHidden = Nop
+	self.OnMoved = NopPos
+	self.OnUpdate = NopPos
 
 	self.Show = Show(self)
 	self.Move = Move(self)
@@ -82,7 +83,7 @@ function ToolTip.Offset(self: ToolTip, Value: Vector2?): Vector2
 end
 
 function ToolTip.IsEnabled(self: ToolTip)
-	return next(self.Connections) ~= nil
+	return self.Connections[next(self.Guis)] == nil
 end
 
 function ToolTip.Enable(self: ToolTip)
@@ -107,11 +108,9 @@ end
 
 function ToolTip.Add(self: ToolTip, Gui: GuiObject)
 	if self.Guis[Gui] then return end
-
 	self.Guis[Gui] = true
 
 	if not self:IsEnabled() then return end
-
 	Connect(self, Gui)
 end
 
@@ -131,13 +130,9 @@ end
 
 function ToolTip.Destroy(self: ToolTip)
 	self:Disable()
+	table.clear(self.Guis)
 	self.Instance:Destroy()
 end
-
-function ToolTip.OnShown(self: ToolTip) end
-function ToolTip.OnMoved(self: ToolTip, Position: UDim2) end
-function ToolTip.OnHidden(self: ToolTip) end
-function ToolTip.OnUpdate(self: ToolTip, Position: UDim2) end
 
 local TextToolTip = table.clone(ToolTip)
 TextToolTip.__index = TextToolTip
@@ -156,11 +151,13 @@ do
 	TextLabel.TextStrokeTransparency = 0
 	TextLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 	TextLabel.TextScaled = true
+	TextLabel.Visible = false
 
 	Module.DefaultTextLabel = TextLabel
 end
 
 function Module.fromGui(GuiObject: GuiObject, Offset: Vector2, Anchor: Vector2)
+	GuiObject.Visible = false
 	local self = From(GuiObject, Offset, Anchor)
 	return setmetatable(self, ToolTip)
 end
