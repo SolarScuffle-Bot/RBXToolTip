@@ -1,163 +1,178 @@
---!strict
+local UserInputService = game:GetService 'UserInputService'
 
-local CollectionService = game:GetService 'CollectionService'
-local Players = game:GetService 'Players'
-
-local localPlayer = Players.LocalPlayer
-local mouse = localPlayer:GetMouse()
-
-local PlayerGui = localPlayer:WaitForChild 'PlayerGui' :: PlayerGui
-
-local module = {}
-
-do
-	local screenGui = Instance.new 'ScreenGui'
-	module.screenGui = screenGui :: ScreenGui
-	screenGui.Name = 'Tooltip'
-	screenGui.ResetOnSpawn = false
-	screenGui.DisplayOrder = 10
-	screenGui.Parent = PlayerGui :: PlayerGui
+local function Show(self)
+	return function()
+		self.Instance.Visible = true
+		self:OnShown()
+	end
 end
 
-do
-	local frame = Instance.new 'Frame'
-	module.frame = frame :: Frame
-	frame.Name = 'Tooltip'
-	frame.AutomaticSize = Enum.AutomaticSize.XY
-	frame.Size = UDim2.fromScale(0.2, 0.1)
-	frame.BackgroundTransparency = 1
-	frame.ZIndex = 2
-	frame.Visible = false
-	frame.Parent = module.screenGui
+local function Move(self)
+	return function(X: number, Y: number)
+		local WasHidden = not self.Instance.Visible
+		self.Instance.Visible = true
+
+		if WasHidden then self:OnShown() end
+
+		self:OnMoved(UDim2.fromOffset(X, Y))
+	end
 end
+
+local function Hide(self)
+	return function()
+		self.Instance.Visible = false
+		self:OnHidden()
+	end
+end
+
+local function Connect(self: ToolTip, Gui: GuiObject)
+	self.Connections[Gui] = {
+		Enter = Gui.MouseEnter:Connect(self.Show),
+		Moved = Gui.MouseMoved:Connect(self.Move),
+		Leave = Gui.MouseLeave:Connect(self.Hide),
+		Destroying = Gui.Destroying:Connect(function()
+			self:Remove(Gui)
+		end),
+	}
+end
+
+local function Disconnect(self: ToolTip, Gui: GuiObject)
+	local Connections = self.Connections[Gui]
+	Connections.Enter:Disconnect()
+	Connections.Moved:Disconnect()
+	Connections.Leave:Disconnect()
+	Connections.Destroying:Disconnect()
+end
+
+local ToolTip = {}
+ToolTip.__index = ToolTip
+
+function ToolTip.Anchor(self: ToolTip, Value: UDim2?): UDim2 --* should be able to dynamically change the tooltip
+	if Value then self.Instance.AnchorPoint = Value end
+	return self.Instance.AnchorPoint
+end
+
+function ToolTip.Offset(self: ToolTip, Value: UDim2?): UDim2
+	if Value then self.Offset = Value end
+	return self.Offset
+end
+
+function ToolTip.IsEnabled(self: ToolTip)
+	return next(self.Connections) ~= nil
+end
+
+function ToolTip.Enable(self: ToolTip)
+	if self:IsEnabled() then return end
+
+	for Gui in self.Guis do
+		Connect(self, Gui)
+	end
+end
+
+function ToolTip.Disable(self: ToolTip)
+	if not self:IsEnabled() then return end
+
+	self.Instance.Visible = false
+
+	for _, Connection in self.Connections do
+		Disconnect(self, Connection)
+	end
+
+	table.clear(self.Connections)
+end
+
+function ToolTip.Add(self: ToolTip, Gui: GuiObject)
+	if self.Guis[Gui] then return end
+
+	self.Guis[Gui] = true
+
+	if not self:IsEnabled() then return end
+
+	Connect(self, Gui)
+end
+
+function ToolTip.Remove(self: ToolTip, Gui: GuiObject)
+	if not self.Guis[Gui] then return end
+
+	if self:IsEnabled() then Disconnect(self, Gui) end
+
+	self.Guis[Gui] = nil
+end
+
+function ToolTip.Update(self: ToolTip)
+	local MousePosition = UserInputService:GetMouseLocation()
+	self.Instance.Position = UDim2.fromOffset(MousePosition.X + self.Offset.X, MousePosition.Y + self.Offset.Y)
+	self:OnUpdate(self.Instance.Position)
+end
+
+function ToolTip.Destroy(self: ToolTip)
+	self:Disable()
+	self.Instance:Destroy()
+end
+
+function ToolTip.OnShown(self: ToolTip) end
+function ToolTip.OnMoved(self: ToolTip, Position: UDim2) end
+function ToolTip.OnHidden(self: ToolTip) end
+function ToolTip.OnUpdate(self: ToolTip, Position: UDim2) end
+
+local TextToolTip = table.clone(ToolTip)
+TextToolTip.__index = TextToolTip
+
+function TextToolTip.Text(self: TextToolTip, Value: string): string
+	if Value then self.Text = Value end
+	return self.Text
+end
+
+local Module = {}
 
 do
 	local textLabel = Instance.new 'TextLabel'
-	module.textLabel = textLabel :: TextLabel
-	textLabel.Size = UDim2.new(1, 0, 1, 0)
 	textLabel.BackgroundTransparency = 1
 	textLabel.TextColor3 = Color3.new(1, 1, 1)
 	textLabel.TextStrokeTransparency = 0
 	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
 	textLabel.TextScaled = true
-	textLabel.Parent = module.frame
 
-	local uiStroke = Instance.new 'UIStroke'
-	uiStroke.Thickness = 2
-	uiStroke.Parent = textLabel
+	Module.DefaultTextLabel = textLabel
 end
 
-module.connections = {} :: {
-	[GuiObject]: {
-		mouseEnter: RBXScriptConnection,
-		mouseMoved: RBXScriptConnection,
-		mouseExit: RBXScriptConnection,
-	},
+function Module.fromGui(GuiObject: GuiObject, Offset: Vector2, Anchor: Vector2)
+	local self = {
+		Instance = GuiObject,
+		Offset = UDim2.fromOffset(Offset.X, Offset.Y),
+		Anchor = UDim2.fromScale(Anchor.X, Anchor.Y),
+		Connections = {},
+		Guis = {},
+	}
 
-	tagRemoved: RBXScriptConnection?,
-}
+	self.Show = Show(self)
+	self.Move = Move(self)
+	self.Hide = Hide(self)
 
-module.tag = 'Tooltip'
-module.offset = Vector2.new(0, 0)
-module.anchor = Vector2.new(0, 0)
-
-local showTooltip = function(instance: GuiObject)
-	assert(instance:IsA 'GuiObject', 'instance must be a GuiObject')
-	assert(instance:GetAttribute(module.tag), 'instance must have the tooltip attribute')
-
-	return function()
-		module.frame.Position = UDim2.fromOffset(mouse.X + module.offset.X, mouse.Y + module.offset.Y)
-		module.textLabel.Text = instance:GetAttribute(module.tag)
-		module.frame.Visible = true
-	end
+	return setmetatable(self, ToolTip)
 end
 
-local hideTooltip = function()
-	module.frame.Visible = false
+function Module.fromText(Text: string, Offset: Vector2, Anchor: Vector2)
+	local TextInstance = Module.DefaultTextLabel:Clone()
+	TextInstance.Text = Text
+
+	local self = {
+		Instance = TextInstance,
+		Offset = UDim2.fromOffset(Offset.X, Offset.Y),
+		Anchor = UDim2.fromScale(Anchor.X, Anchor.Y),
+		Connections = {},
+		Guis = {},
+		Text = Text,
+	}
+
+	self.Show = Show(self)
+	self.Move = Move(self)
+	self.Hide = Hide(self)
+
+	return setmetatable(self, TextToolTip)
 end
 
-module.get = {}
+export type ToolTip = typeof(Module.fromGui(Instance.new 'Frame', Vector2.new(), Vector2.new()))
+export type TextToolTip = typeof(Module.fromText('', Vector2.new(), Vector2.new()))
 
-module.get.tag = function()
-	return module.tag
-end
-
-module.get.offset = function()
-	return module.offset
-end
-
-module.get.anchor = function()
-	return module.anchor
-end
-
-module.get.started = function()
-	return not not module.connections.tagRemoved
-end
-
-module.set = {}
-
-module.set.tag = function(tag: string)
-	module.tag = tag
-end
-
-module.set.offset = function(offset: Vector2)
-	module.offset = offset
-end
-
-module.set.anchor = function(anchor: Vector2)
-	module.frame.AnchorPoint = anchor
-	module.anchor = module.frame.AnchorPoint
-end
-
-module.add = function(instance: GuiObject, tooltip: string)
-	instance:SetAttribute(module.tag, tooltip)
-	CollectionService:AddTag(instance, module.tag)
-end
-
-module.remove = function(instance: GuiObject)
-	instance:SetAttribute(module.tag, nil)
-	CollectionService:RemoveTag(instance, module.tag)
-end
-
-module.start = function()
-	if module.connections.tagRemoved then return end
-
-	local tagged = CollectionService:GetTagged(module.tag)
-
-	for _, instance in tagged do
-		local gui = instance :: GuiObject
-		local show = showTooltip(gui)
-		module.connections[gui] = {
-			mouseEnter = gui.MouseEnter:Connect(show),
-			mouseMoved = gui.MouseMoved:Connect(show),
-			mouseExit = gui.MouseLeave:Connect(hideTooltip),
-		}
-	end
-
-	module.connections.tagRemoved = CollectionService:GetInstanceRemovedSignal(module.tag):Connect(function(instance)
-		local gui = instance :: GuiObject
-		for _, connection in pairs(module.connections[gui]) do
-			connection:Disconnect()
-		end
-		module.connections[gui] = nil
-	end)
-end
-
-module.stop = function()
-	if not module.connections.tagRemoved then return end
-
-	module.connections.tagRemoved:Disconnect()
-	module.connections.tagRemoved = nil
-
-	for _, connection in module.connections do
-		for _, connection in pairs(connection) do
-			connection:Disconnect()
-		end
-	end
-
-	table.clear(module.connections)
-
-	hideTooltip()
-end
-
-return module
+return Module
